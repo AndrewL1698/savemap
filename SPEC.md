@@ -2,7 +2,7 @@
 
 ## Goal
 A local Python CLI that takes my TikTok and Instagram saved videos, transcribes
-and summarizes each one, groups them into CS/software topics, and outputs an
+and summarizes each one, groups them into topics (CS and anything else I save), and outputs an
 Obsidian vault whose graph view is a map of everything I've saved.
 
 Everything must run on free tools or free API tiers. No paid services.
@@ -53,31 +53,45 @@ Every stage must be resumable after a crash or rate-limit stop.
    - `title` (short, descriptive — not the creator's clickbait)
    - `summary` (2–3 sentences)
    - `key_takeaways` (list, max 5)
-   - `content_type`: concept | tool | tutorial | career | interview_prep |
-     project_idea | news | humor
-   - `topics` (1–3, from the seed taxonomy below or `other`)
+   - `content_type`: one of `taxonomy.content_types` in config (default: concept |
+     tool | tutorial | how_to | reference | career | interview_prep | project_idea |
+     video_idea | inspiration | news | humor)
+   - `topics` (1–3 `{area, topic}` pairs; reuse existing ones, create new ones
+     only when nothing fits; see Taxonomy below)
    - `tags` (free-form, lowercase, max 6)
    - `resources` (repos, libraries, sites, books mentioned)
    - `actionable` (bool) + `action` (one line: what I could actually do)
 6. `organize` — embed `title + summary + takeaways`; cluster; have the LLM
-   name each cluster; build a topic → subtopic hierarchy. Detect
+   name each cluster; refine the area → topic → subtopic hierarchy (suggest
+   merges/splits as config aliases). Detect
    near-duplicates (cosine similarity > 0.9) and group them.
 7. `export` — write the Obsidian vault (see below).
 
-## Seed taxonomy (editable in config)
-Data structures & algorithms, System design, Backend, Frontend, Databases,
-DevOps & cloud, Languages (subtopic per language), AI/ML, Security,
-Dev tools & productivity, Git, Career & job search, Interview prep,
-Computer science fundamentals, Project ideas, Other.
+## Taxonomy (open-ended, seeded from config)
+Two levels: **area → topic**. Config holds seed areas/topics; enrich shows the LLM
+every area/topic that exists so far and it must reuse one when it fits, creating a
+new topic (or area) only when nothing does. Names are matched loosely (case,
+spacing, "&"/"and") and through `[taxonomy.aliases]` for manual merges/renames.
+Each topic belongs to exactly one area; topic names are unique.
+
+Seed areas:
+- Software & CS: Data structures & algorithms, System design, Backend, Frontend,
+  Databases, DevOps & cloud, Languages, AI/ML, Security, Dev tools & productivity,
+  Git, Computer science fundamentals, Project ideas
+- Game dev: Roblox
+- Content creation: Video ideas, Niches
+- Career: Job search, Interview prep
+- Other
 
 ## Obsidian output (`vault/`)
 - `Videos/<slug>.md` — one note per video: frontmatter (url, platform, author,
   saved date, content_type, tags, actionable, reviewed: false), then summary,
   takeaways, resources, link to original, links to `[[Topic]]` notes, and
   "Similar:" links to near-duplicates.
-- `Topics/<Topic>.md` — hub notes listing their videos and subtopics, with a
+- `Areas/<Area>.md` — hub notes linking their topics, with video counts.
+- `Topics/<Topic>.md` — hub notes linking their area, videos and subtopics, with a
   one-paragraph LLM overview of what I've saved on that topic.
-- `Index.md` — top-level map: all topics with counts.
+- `Index.md` — top-level map: areas → topics with counts.
 - `Review/This week.md` — 5 random unreviewed actionable videos.
 Re-running export must update notes without destroying edits I made below a
 `<!-- my notes -->` marker.

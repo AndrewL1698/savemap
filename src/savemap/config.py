@@ -35,7 +35,9 @@ class Download(BaseModel):
 
 
 class Taxonomy(BaseModel):
-    topics: list[str]
+    content_types: list[str] = Field(min_length=1)
+    areas: dict[str, list[str]] = Field(min_length=1)  # seed area -> seed topics
+    aliases: dict[str, str] = {}                       # produced name -> canonical name
 
 
 class Settings(BaseModel):

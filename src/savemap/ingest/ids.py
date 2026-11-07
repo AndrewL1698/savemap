@@ -14,7 +14,8 @@ class VideoRef(NamedTuple):
 
 
 _TIKTOK_ID = re.compile(r"/(?:video|v)/(\d+)")
-_IG_CODE = re.compile(r"/(?:reels?|p|tv)/([A-Za-z0-9_-]+)")
+_TIKTOK_WEB = re.compile(r"/@[\w.-]+/video/\d+")
+_IG_CODE = re.compile(r"/(reels?|p|tv)/([A-Za-z0-9_-]+)")
 
 
 def normalize_url(url: str) -> str:
@@ -34,15 +35,18 @@ def identify(url: str) -> VideoRef:
     if host.endswith(("tiktok.com", "tiktokv.com")):
         if m := _TIKTOK_ID.search(path):
             vid = m.group(1)
-            # Canonical URL keeps dedupe & yt-dlp happy regardless of share-link format.
+            if _TIKTOK_WEB.fullmatch(path):
+                return VideoRef("tiktok", vid, f"https://www.tiktok.com{path}")
+            # Share/mobile formats (tiktokv.com/share/video/ID, m.tiktok.com/v/ID.html).
             return VideoRef("tiktok", vid, f"https://www.tiktok.com/@_/video/{vid}")
         # Short links (vm.tiktok.com/XYZ, tiktok.com/t/XYZ): resolved to the numeric ID at download.
         return VideoRef("tiktok", f"short:{norm}", norm)
 
     if host.endswith("instagram.com"):
         if m := _IG_CODE.search(path):
-            code = m.group(1)
-            return VideoRef("instagram", code, f"https://www.instagram.com/reel/{code}/")
+            code = m.group(2)
+            kind = "reel" if m.group(1) in ("reel", "reels") else m.group(1)  # keep /p/ vs /reel/
+            return VideoRef("instagram", code, f"https://www.instagram.com/{kind}/{code}/")
         raise ValueError(f"Unrecognized Instagram URL (expected /reel/<code> or /p/<code>): {url}")
 
     return VideoRef("other", norm, norm)

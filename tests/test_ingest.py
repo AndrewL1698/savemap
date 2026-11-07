@@ -26,6 +26,15 @@ def test_identify(url, platform, vid):
     assert (ref.platform, ref.video_id) == (platform, vid)
 
 
+def test_original_link_shape_is_kept():
+    assert identify("https://www.tiktok.com/@musab.codes/video/123?lang=en").url == \
+        "https://www.tiktok.com/@musab.codes/video/123"
+    assert identify("https://www.tiktokv.com/share/video/123/").url == "https://www.tiktok.com/@_/video/123"
+    assert identify("https://www.instagram.com/p/DfZm0xxM7nD/?hl=en").url == \
+        "https://www.instagram.com/p/DfZm0xxM7nD/"
+    assert identify("https://www.instagram.com/reels/AbC/").url == "https://www.instagram.com/reel/AbC/"
+
+
 def test_tiktok_short_link_kept_for_resolution():
     ref = identify("https://vm.tiktok.com/ZMabc123/?x=1")
     assert ref.platform == "tiktok"

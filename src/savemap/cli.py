@@ -10,8 +10,10 @@ from rich.table import Table
 
 from . import db
 from .config import ConfigError, Settings, load_settings
+from .download import run_download
 from .ingest import run_ingest
 from .logs import console, setup_logging
+from .ratelimit import StopStage
 
 app = typer.Typer(help="Turn saved TikToks & Reels into an Obsidian topic map.", no_args_is_help=True)
 
@@ -37,6 +39,21 @@ def _ingest(settings: Settings, conn: sqlite3.Connection, limit: int | None) -> 
     )
 
 
+def _download(settings: Settings, conn: sqlite3.Connection, limit: int | None) -> None:
+    try:
+        res = run_download(conn, settings, limit)
+    except StopStage as e:
+        console.print(f"[red]download stopped:[/] {e}")
+        return
+    line = (f"[bold]download[/]: done {res.done}, unavailable {res.unavailable}, "
+            f"failed {res.failed}")
+    if res.merged:
+        line += f", short-link duplicates removed {res.merged}"
+    console.print(line)
+    if res.stopped:
+        console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
+
+
 @app.command()
 def ingest(limit: Limit = None) -> None:
     """Parse exports + urls.txt and add new videos to the database."""
@@ -45,10 +62,18 @@ def ingest(limit: Limit = None) -> None:
 
 
 @app.command()
+def download(limit: Limit = None) -> None:
+    """Download audio + metadata for ingested videos (yt-dlp + ffmpeg)."""
+    settings, conn = _open()
+    _download(settings, conn, limit)
+
+
+@app.command()
 def run(limit: Limit = None) -> None:
     """Run all stages in order."""
     settings, conn = _open()
     _ingest(settings, conn, limit)
+    _download(settings, conn, limit)
     _print_status(conn)
 
 

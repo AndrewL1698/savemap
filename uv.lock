@@ -284,6 +284,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "rich" },
     { name = "typer" },
+    { name = "yt-dlp" },
 ]
 
 [package.dev-dependencies]
@@ -297,6 +298,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rich", specifier = ">=13" },
     { name = "typer", specifier = ">=0.12" },
+    { name = "yt-dlp", specifier = ">=2026.10.26" },
 ]
 
 [package.metadata.requires-dev]
@@ -345,4 +347,13 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ff/50/0195198eb1d75bab716bb0a813abea4cc394bfa17a92a189f021a34859af/typing_inspection-0.4.5.tar.gz", hash = "sha256:7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7", size = 81194, upload-time = "2026-11-04T14:13:23.774Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/0c/ea2544850a7c135e15033a5c7a8e7211136184b7ae63e2239d557c2b3019/typing_inspection-0.4.5-py3-none-any.whl", hash = "sha256:bc210535442b39e1bf2805e0c7a17dfd6a4ace760c84c7f7d16245d23a6b1c39", size = 14874, upload-time = "2026-11-04T14:13:22.616Z" },
+]
+
+[[package]]
+name = "yt-dlp"
+version = "2026.10.26"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/31/4be3987022a6244550ab6a3afe45ad10ac10b5e5ab8874bd8eecc7f8b937/yt_dlp-2026.10.26.tar.gz", hash = "sha256:abe5c6b94c3b2f0560500add1c42e0a97641752743a5b65588ac2007a6e23eb6", size = 3048880, upload-time = "2026-10-26T22:25:26.931Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/3d/16ea7d5638cf585991f2c5705e8083688dde633d32d0871f2404e0f4d827/yt_dlp-2026.10.26-py3-none-any.whl", hash = "sha256:a05c5b5d8562f7e8a62f5334348b406af4930d56d3a65f8021d14af0e22339ae", size = 3186201, upload-time = "2026-10-26T22:25:24.877Z" },
 ]
