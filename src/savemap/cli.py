@@ -11,6 +11,7 @@ from rich.table import Table
 from . import db
 from .config import ConfigError, Settings, load_settings
 from .download import run_download
+from .enrich import run_enrich
 from .ingest import run_ingest
 from .logs import console, setup_logging
 from .ratelimit import StopStage
@@ -70,6 +71,17 @@ def _transcribe(settings: Settings, conn: sqlite3.Connection, limit: int | None)
         console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
 
 
+def _enrich(settings: Settings, conn: sqlite3.Connection, limit: int | None) -> None:
+    try:
+        res = run_enrich(conn, settings, limit)
+    except ConfigError as e:
+        console.print(f"[red]enrich:[/] {e}")
+        return
+    console.print(f"[bold]enrich[/]: done {res.done}, failed {res.failed}, new topics {res.new_topics}")
+    if res.stopped:
+        console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
+
+
 @app.command()
 def ingest(limit: Limit = None) -> None:
     """Parse exports + urls.txt and add new videos to the database."""
@@ -92,12 +104,20 @@ def transcribe(limit: Limit = None) -> None:
 
 
 @app.command()
+def enrich(limit: Limit = None) -> None:
+    """Summarize + categorize transcribed videos with the configured LLM(s)."""
+    settings, conn = _open()
+    _enrich(settings, conn, limit)
+
+
+@app.command()
 def run(limit: Limit = None) -> None:
     """Run all stages in order."""
     settings, conn = _open()
     _ingest(settings, conn, limit)
     _download(settings, conn, limit)
     _transcribe(settings, conn, limit)
+    _enrich(settings, conn, limit)
     _print_status(conn)
 
 

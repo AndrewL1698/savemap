@@ -41,6 +41,15 @@ class Transcribe(BaseModel):
     max_wait_seconds: float = Field(120, ge=0)
 
 
+class LLMConfig(BaseModel):
+    providers: list[str] = Field(min_length=1)  # preference order; later ones are failover
+    groq_model: str
+    gemini_model: str
+    temperature: float = Field(0.2, ge=0, le=2)
+    max_wait_seconds: float = Field(120, ge=0)
+    transcript_chars: int = Field(6000, ge=500)
+
+
 class Taxonomy(BaseModel):
     content_types: list[str] = Field(min_length=1)
     areas: dict[str, list[str]] = Field(min_length=1)  # seed area -> seed topics
@@ -53,6 +62,7 @@ class Settings(BaseModel):
     pipeline: Pipeline = Pipeline()
     download: Download = Download()
     transcribe: Transcribe
+    llm: LLMConfig
     taxonomy: Taxonomy
 
     def resolve(self, p: Path) -> Path:

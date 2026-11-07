@@ -27,6 +27,17 @@ min_words = 30               # fewer real words than this -> flag needs_visual
 no_speech_threshold = 0.6    # drop segments Whisper thinks aren't speech (music, silence)
 max_wait_seconds = 120       # wait out short rate limits; longer (e.g. daily cap) -> stop & resume later
 
+[llm]
+# Providers in preference order. When one hits its daily free-tier cap, the run fails over
+# to the next one. Check model IDs against current docs before changing:
+#   https://console.groq.com/docs/models   https://ai.google.dev/gemini-api/docs/models
+providers = ["groq", "gemini"]
+groq_model = "openai/gpt-oss-120b"     # supports strict JSON-schema output
+gemini_model = "gemini-3.5-flash-lite"
+temperature = 0.2
+max_wait_seconds = 120
+transcript_chars = 6000                # longer transcripts are truncated in the prompt
+
 [taxonomy]
 # Categories are open-ended. Each video gets 1-3 (area, topic) pairs. The LLM is shown
 # every area/topic that exists so far (the seeds below + ones it created earlier) and
