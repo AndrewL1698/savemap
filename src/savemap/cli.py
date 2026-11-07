@@ -12,6 +12,7 @@ from . import db
 from .config import ConfigError, Settings, load_settings
 from .download import run_download
 from .enrich import run_enrich
+from .export import run_export
 from .ingest import run_ingest
 from .logs import console, setup_logging
 from .ratelimit import StopStage
@@ -82,6 +83,17 @@ def _enrich(settings: Settings, conn: sqlite3.Connection, limit: int | None) -> 
         console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
 
 
+def _export(settings: Settings, conn: sqlite3.Connection, limit: int | None, overviews: bool = True) -> None:
+    res = run_export(conn, settings, limit, overviews=overviews)
+    console.print(
+        f"[bold]export[/]: {res.videos} videos, {res.topics} topics, {res.areas} areas -> "
+        f"{settings.resolve(settings.paths.vault_dir)} (written {res.written}, unchanged {res.unchanged}, "
+        f"new overviews {res.overviews_generated})"
+    )
+    if res.overview_problem:
+        console.print(f"[yellow]some topic overviews skipped: {res.overview_problem}[/]")
+
+
 @app.command()
 def ingest(limit: Limit = None) -> None:
     """Parse exports + urls.txt and add new videos to the database."""
@@ -111,6 +123,16 @@ def enrich(limit: Limit = None) -> None:
 
 
 @app.command()
+def export(
+    limit: Limit = None,
+    overviews: Annotated[bool, typer.Option(help="Generate LLM topic overviews (cached).")] = True,
+) -> None:
+    """Write/update the Obsidian vault. Keeps everything below <!-- my notes -->."""
+    settings, conn = _open()
+    _export(settings, conn, limit, overviews)
+
+
+@app.command()
 def run(limit: Limit = None) -> None:
     """Run all stages in order."""
     settings, conn = _open()
@@ -118,6 +140,7 @@ def run(limit: Limit = None) -> None:
     _download(settings, conn, limit)
     _transcribe(settings, conn, limit)
     _enrich(settings, conn, limit)
+    _export(settings, conn, None)
     _print_status(conn)
 
 

@@ -151,3 +151,8 @@ def test_provider_chain_fails_over_then_stops():
     assert chain.name == "gemini"
     with pytest.raises(StopStage, match="all LLM providers"):
         chain.complete_json("s", "u", {}, "n")
+
+
+def test_odd_hyphens_normalized_everywhere():
+    e = parse(title="High\u2011quality code", key_takeaways=["non\u2011bloated"], action="do\u00a0it")
+    assert (e.title, e.key_takeaways, e.action) == ("High-quality code", ["non-bloated"], "do it")

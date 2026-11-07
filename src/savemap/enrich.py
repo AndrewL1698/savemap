@@ -6,7 +6,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, ValidationError, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationError, ValidationInfo, field_validator, model_validator
 
 from . import db
 from .config import Settings
@@ -53,10 +53,23 @@ class Enrichment(BaseModel):
     actionable: bool
     action: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _clean_all_strings(cls, data: object) -> object:
+        def walk(v: object) -> object:
+            if isinstance(v, str):
+                return v.translate(_DASHES)
+            if isinstance(v, list):
+                return [walk(x) for x in v]
+            if isinstance(v, dict):
+                return {k: walk(x) for k, x in v.items()}
+            return v
+        return walk(data)
+
     @field_validator("title", "summary", mode="before")
     @classmethod
     def _strip(cls, v: object) -> object:
-        return " ".join(v.translate(_DASHES).split()) if isinstance(v, str) else v
+        return " ".join(v.split()) if isinstance(v, str) else v
 
     @field_validator("key_takeaways", mode="after")
     @classmethod
@@ -87,6 +100,11 @@ class Enrichment(BaseModel):
     @classmethod
     def _action(cls, v: str | None) -> str | None:
         return (v or "").strip() or None
+
+
+def clean_llm_text(text: str) -> str:
+    """Collapse whitespace and replace the odd hyphens/spaces some models emit."""
+    return " ".join(text.translate(_DASHES).split())
 
 
 def parse_enrichment(raw: str, content_types: list[str]) -> Enrichment:
