@@ -1,0 +1,41 @@
+# savemap configuration. Paths are relative to this file's directory.
+
+[paths]
+db = "data/savemap.db"
+log = "data/savemap.log"
+audio_dir = "data/audio"
+exports_dir = "exports"
+urls_file = "urls.txt"
+vault_dir = "vault"
+
+[pipeline]
+# A row that fails a stage this many times is skipped until you fix it
+# (see `savemap status`).
+max_attempts = 3
+
+[download]
+delay_min = 2.0
+delay_max = 5.0
+# Instagram needs a logged-in session. Use ONE of these:
+instagram_cookies_file = ""          # path to a Netscape cookies.txt (gitignored)
+instagram_cookies_from_browser = ""  # e.g. "chrome", "firefox", "safari"
+
+[taxonomy]
+topics = [
+    "Data structures & algorithms",
+    "System design",
+    "Backend",
+    "Frontend",
+    "Databases",
+    "DevOps & cloud",
+    "Languages",
+    "AI/ML",
+    "Security",
+    "Dev tools & productivity",
+    "Git",
+    "Career & job search",
+    "Interview prep",
+    "Computer science fundamentals",
+    "Project ideas",
+    "Other",
+]
