@@ -1,0 +1,78 @@
+# savemap configuration. Paths are relative to this file's directory.
+
+[paths]
+db = "data/savemap.db"
+log = "data/savemap.log"
+audio_dir = "data/audio"
+exports_dir = "exports"
+urls_file = "urls.txt"
+vault_dir = "vault"
+
+[pipeline]
+# A row that fails a stage this many times is skipped until you fix it
+# (see `savemap status`).
+max_attempts = 3
+
+[download]
+delay_min = 2.0
+delay_max = 5.0
+# Instagram needs a logged-in session. Use ONE of these:
+instagram_cookies_file = ""          # path to a Netscape cookies.txt (gitignored)
+instagram_cookies_from_browser = "chrome"  # e.g. "chrome", "firefox", "safari"
+
+[transcribe]
+# Groq speech-to-text model (see https://console.groq.com/docs/speech-to-text)
+model = "whisper-large-v3-turbo"
+min_words = 30               # fewer real words than this -> flag needs_visual
+no_speech_threshold = 0.6    # drop segments Whisper thinks aren't speech (music, silence)
+max_wait_seconds = 120       # wait out short rate limits; longer (e.g. daily cap) -> stop & resume later
+
+[llm]
+# Providers in preference order. When one hits its daily free-tier cap, the run fails over
+# to the next one. Check model IDs against current docs before changing:
+#   https://console.groq.com/docs/models   https://ai.google.dev/gemini-api/docs/models
+providers = ["groq", "gemini"]
+groq_model = "openai/gpt-oss-120b"     # supports strict JSON-schema output
+gemini_model = "gemini-3.5-flash-lite"
+temperature = 0.2
+max_wait_seconds = 120
+transcript_chars = 6000                # longer transcripts are truncated in the prompt
+
+[taxonomy]
+# Categories are open-ended. Each video gets 1-3 (area, topic) pairs. The LLM is shown
+# every area/topic that exists so far (the seeds below + ones it created earlier) and
+# must reuse them when they fit; it only invents a new topic/area when nothing does.
+# Topic names are unique across areas (one Obsidian hub note per topic).
+
+content_types = [
+    "concept", "tool", "tutorial", "how_to", "reference", "career",
+    "interview_prep", "project_idea", "video_idea", "inspiration", "news", "humor",
+]
+
+# Seed areas -> seed topics. Add, remove or rename freely; new ones appear on their own.
+[taxonomy.areas]
+"Software & CS" = [
+    "Data structures & algorithms",
+    "System design",
+    "Backend",
+    "Frontend",
+    "Databases",
+    "DevOps & cloud",
+    "Languages",
+    "AI/ML",
+    "Security",
+    "Dev tools & productivity",
+    "Git",
+    "Computer science fundamentals",
+    "Project ideas",
+]
+"Game dev" = ["Roblox"]
+"Content creation" = ["Video ideas", "Niches"]
+"Career" = ["Job search", "Interview prep"]
+"Other" = []
+
+# Merge/rename: "name the LLM produced" = "name to use instead". Matching ignores case,
+# extra spaces and "&" vs "and". Re-run `savemap export` after editing.
+[taxonomy.aliases]
+# "Roblox Studio" = "Roblox"
+# "Lua" = "Roblox"
