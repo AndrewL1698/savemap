@@ -14,6 +14,7 @@ from .download import run_download
 from .ingest import run_ingest
 from .logs import console, setup_logging
 from .ratelimit import StopStage
+from .transcribe import run_transcribe
 
 app = typer.Typer(help="Turn saved TikToks & Reels into an Obsidian topic map.", no_args_is_help=True)
 
@@ -54,6 +55,21 @@ def _download(settings: Settings, conn: sqlite3.Connection, limit: int | None) -
         console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
 
 
+def _transcribe(settings: Settings, conn: sqlite3.Connection, limit: int | None) -> None:
+    try:
+        res = run_transcribe(conn, settings, limit)
+    except ConfigError as e:
+        console.print(f"[red]transcribe:[/] {e}")
+        return
+    line = (f"[bold]transcribe[/]: done {res.done} (needs_visual {res.needs_visual}), "
+            f"failed {res.failed}")
+    if res.redownload:
+        line += f", audio missing -> re-download {res.redownload}"
+    console.print(line)
+    if res.stopped:
+        console.print(f"[yellow]stopped early ({res.stopped}). Re-run later to resume.[/]")
+
+
 @app.command()
 def ingest(limit: Limit = None) -> None:
     """Parse exports + urls.txt and add new videos to the database."""
@@ -69,11 +85,19 @@ def download(limit: Limit = None) -> None:
 
 
 @app.command()
+def transcribe(limit: Limit = None) -> None:
+    """Transcribe downloaded audio with Groq Whisper."""
+    settings, conn = _open()
+    _transcribe(settings, conn, limit)
+
+
+@app.command()
 def run(limit: Limit = None) -> None:
     """Run all stages in order."""
     settings, conn = _open()
     _ingest(settings, conn, limit)
     _download(settings, conn, limit)
+    _transcribe(settings, conn, limit)
     _print_status(conn)
 
 

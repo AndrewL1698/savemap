@@ -34,6 +34,13 @@ class Download(BaseModel):
     instagram_cookies_from_browser: str = ""
 
 
+class Transcribe(BaseModel):
+    model: str
+    min_words: int = Field(30, ge=0)
+    no_speech_threshold: float = Field(0.6, ge=0, le=1)
+    max_wait_seconds: float = Field(120, ge=0)
+
+
 class Taxonomy(BaseModel):
     content_types: list[str] = Field(min_length=1)
     areas: dict[str, list[str]] = Field(min_length=1)  # seed area -> seed topics
@@ -45,6 +52,7 @@ class Settings(BaseModel):
     paths: Paths = Paths()
     pipeline: Pipeline = Pipeline()
     download: Download = Download()
+    transcribe: Transcribe
     taxonomy: Taxonomy
 
     def resolve(self, p: Path) -> Path:
