@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from ..config import Settings
 from ..db import insert_video
 from ..logs import log
+from .instagram import load_json, looks_like_instagram_saved, parse_instagram_saved
 from .models import ExportFormatError, SavedItem
 from .urls import parse_urls_file
 
@@ -23,16 +24,27 @@ class IngestResult:
 
 
 def collect(settings: Settings) -> tuple[list[SavedItem], list[str]]:
-    items, warnings = parse_urls_file(settings.resolve(settings.paths.urls_file))
+    """Exports first (they carry save dates), then urls.txt."""
+    items: list[SavedItem] = []
+    warnings: list[str] = []
 
     exports_dir = settings.resolve(settings.paths.exports_dir)
-    if exports_dir.is_dir() and any(p.suffix == ".json" for p in exports_dir.rglob("*")):
-        # TikTok/Instagram parsers get written against the real export files once they arrive.
-        warnings.append(
-            f"Found JSON files in {exports_dir}, but the TikTok/Instagram export parsers "
-            "aren't written yet. Only urls.txt was ingested."
-        )
-    return items, warnings
+    for path in sorted(exports_dir.rglob("*.json")) if exports_dir.is_dir() else []:
+        try:
+            data = load_json(path)
+        except (OSError, ValueError) as e:
+            warnings.append(f"{path.name}: can't read JSON ({e})")
+            continue
+        if looks_like_instagram_saved(data):
+            found, warns = parse_instagram_saved(data, path.name)
+            items += found
+            warnings += warns
+        else:
+            # The TikTok parser gets written against the real export file once it arrives.
+            warnings.append(f"{path.name}: unrecognized export format, skipped")
+
+    found, warns = parse_urls_file(settings.resolve(settings.paths.urls_file))
+    return items + found, warnings + warns
 
 
 def run_ingest(conn: sqlite3.Connection, settings: Settings, limit: int | None = None) -> IngestResult:

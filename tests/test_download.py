@@ -9,6 +9,9 @@ from savemap.download import check_duration, classify, clean_text, extract_metad
     ("[Instagram] abc: Requested content is not available, rate-limit reached or login required. "
      "Use --cookies, --cookies-from-browser", "login"),
     ("[TikTok] 123: Video unavailable", "unavailable"),
+    ("[Instagram] DfORmLXsQmm: This content isn't available to everyone: It can't be seen by "
+     "certain audiences.", "restricted"),
+    ("[Instagram] abc: This content isn't available", "unavailable"),
     ("This video is private", "unavailable"),
     ("HTTP Error 429: Too Many Requests", "rate_limited"),
     ("Unable to download webpage: <urlopen error timed out>", "error"),

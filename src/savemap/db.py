@@ -73,7 +73,12 @@ def insert_video(
         "INSERT OR IGNORE INTO videos (platform, video_id, url, saved_at, source) VALUES (?, ?, ?, ?, ?)",
         (platform, video_id, url, saved_at, source),
     )
-    return cur.rowcount == 1
+    if cur.rowcount == 1:
+        return True
+    if saved_at:  # e.g. first added via urls.txt, now seen in an export with a save date
+        conn.execute("UPDATE videos SET saved_at = ? WHERE platform = ? AND video_id = ? AND saved_at IS NULL",
+                     (saved_at, platform, video_id))
+    return False
 
 
 def pending(conn: sqlite3.Connection, state: str, max_attempts: int, limit: int | None = None) -> list[sqlite3.Row]:

@@ -26,6 +26,9 @@ from .ratelimit import StopStage
 _NEEDS_LOGIN = ("login required", "log in to", "--cookies", "could not find chrome cookies",
                 "failed to decrypt", "cookie")
 _RATE_LIMITED = ("rate-limit", "rate limit", "too many requests", "http error 429", "please wait a few minutes")
+# Instagram sometimes returns this for reels it serves fine moments later (seen in practice), so
+# it's a retryable error, not a terminal "unavailable". Checked before _UNAVAILABLE.
+_RESTRICTED = ("isn't available to everyone", "can't be seen by certain audiences")
 _UNAVAILABLE = (
     "video unavailable", "this video is unavailable", "private", "has been removed", "been deleted",
     "no longer available", "not available", "content isn't available", "http error 404",
@@ -62,10 +65,10 @@ class DownloadResult:
 
 
 def classify(message: str) -> str:
-    """'rate_limited' | 'login' | 'unavailable' | 'error'."""
+    """'rate_limited' | 'login' | 'restricted' | 'unavailable' | 'error'."""
     m = message.lower()
     for kind, patterns in (("login", _NEEDS_LOGIN), ("rate_limited", _RATE_LIMITED),
-                           ("unavailable", _UNAVAILABLE)):
+                           ("restricted", _RESTRICTED), ("unavailable", _UNAVAILABLE)):
         if any(p in m for p in patterns):
             return kind
     return "error"
@@ -83,8 +86,23 @@ def extract_metadata(info: dict) -> dict:
     }
 
 
+class _YtdlpLogger:
+    """yt-dlp prints errors to stderr even with quiet=True; send everything to our log instead."""
+
+    def debug(self, msg: str) -> None:
+        pass
+
+    info = debug
+
+    def warning(self, msg: str) -> None:
+        log.debug("yt-dlp: %s", msg)
+
+    error = warning
+
+
 def _ydl_opts(settings: Settings, platform: str, outtmpl: str) -> dict:
     opts = {
+        "logger": _YtdlpLogger(),
         "format": _FORMATS.get(platform, _DEFAULT_FORMAT),
         "outtmpl": outtmpl,
         "quiet": True,
@@ -180,6 +198,22 @@ def _resolve_short_link(conn: sqlite3.Connection, row: sqlite3.Row, info: dict) 
         return False
 
 
+def _error_text(e: Exception) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", str(e)).removeprefix("ERROR: ")
+
+
+def _fetch_with_retry(settings: Settings, row: sqlite3.Row) -> tuple[dict, Path]:
+    """fetch(), retrying once after a pause when Instagram gives its flaky 'restricted' answer."""
+    try:
+        return fetch(settings, row)
+    except DownloadError as e:
+        if classify(_error_text(e)) != "restricted":
+            raise
+        log.info("restricted, retrying once", extra={"fields": {"id": row["id"], "url": row["url"]}})
+        time.sleep(random.uniform(settings.download.delay_min, settings.download.delay_max) * 2)
+        return fetch(settings, row)
+
+
 def run_download(conn: sqlite3.Connection, settings: Settings, limit: int | None = None) -> DownloadResult:
     if not shutil.which("ffmpeg"):
         raise StopStage("ffmpeg not found on PATH (brew install ffmpeg)")
@@ -193,9 +227,9 @@ def run_download(conn: sqlite3.Connection, settings: Settings, limit: int | None
             status.update(f"download {i + 1}/{len(rows)}: {row['url']}")
             fields = {"id": row["id"], "platform": row["platform"], "url": row["url"]}
             try:
-                info, mp3 = fetch(settings, row)
+                info, mp3 = _fetch_with_retry(settings, row)
             except (DownloadError, NotFoundError, RuntimeError) as e:
-                msg = re.sub(r"\x1b\[[0-9;]*m", "", str(e)).removeprefix("ERROR: ")
+                msg = _error_text(e)
                 kind = "unavailable" if isinstance(e, NotFoundError) else classify(msg)
                 if kind == "rate_limited":
                     res.stopped = f"{row['platform']} rate limit: {msg}"
@@ -208,6 +242,8 @@ def run_download(conn: sqlite3.Connection, settings: Settings, limit: int | None
                 else:
                     if kind == "login":
                         msg = f"login/cookies problem: {msg}"
+                    elif kind == "restricted":
+                        msg = f"restricted (retried next run): {msg}"
                     db.fail(conn, row["id"], "download", msg)
                     res.failed += 1
                     log.error("download failed", extra={"fields": fields | {"error": msg}})

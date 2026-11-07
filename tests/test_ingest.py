@@ -96,3 +96,38 @@ def test_pending_respects_attempts(settings):
     db.advance(conn, row["id"], "downloaded")
     (row,) = db.pending(conn, "downloaded", max_attempts=2)
     assert row["attempts"] == 0 and row["last_error"] is None
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_instagram_saved_posts_export():
+    from savemap.ingest.instagram import load_json, parse_instagram_saved
+
+    items, warnings = parse_instagram_saved(load_json(FIXTURES / "instagram_saved_posts.json"))
+    assert [(i.video_id, i.url, i.saved_at, i.source) for i in items[:2]] == [
+        ("AAAAAAAAAA1", "https://www.instagram.com/reel/AAAAAAAAAA1/", "2026-11-07T01:35:58Z", "instagram_export"),
+        ("BBBBBBBBBB2", "https://www.instagram.com/p/BBBBBBBBBB2/", "2025-01-29T16:34:12Z", "instagram_export"),
+    ]
+    assert len(items) == 3  # the duplicate is deduped later by the DB
+    assert len(warnings) == 1 and "no URL" in warnings[0]
+
+
+def test_instagram_old_layout_and_unknown():
+    from savemap.ingest.instagram import parse_instagram_saved
+    from savemap.ingest.models import ExportFormatError
+
+    old = {"saved_saved_media": [{"title": "someone", "string_map_data": {
+        "Saved on": {"href": "https://www.instagram.com/reel/CCC/", "timestamp": 1738168452}}}]}
+    items, _ = parse_instagram_saved(old)
+    assert items[0].video_id == "CCC" and items[0].saved_at == "2025-01-29T16:34:12Z"
+    with pytest.raises(ExportFormatError):
+        parse_instagram_saved({"something": "else"})
+
+
+def test_export_backfills_saved_at(tmp_path):
+    conn = db.connect(tmp_path / "t.db")
+    assert db.insert_video(conn, platform="instagram", video_id="X", url="u", saved_at=None, source="urls")
+    assert not db.insert_video(conn, platform="instagram", video_id="X", url="u",
+                               saved_at="2025-01-01T00:00:00Z", source="instagram_export")
+    assert tuple(conn.execute("SELECT saved_at, source FROM videos").fetchone()) == ("2025-01-01T00:00:00Z", "urls")

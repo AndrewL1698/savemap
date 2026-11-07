@@ -6,6 +6,7 @@ import sqlite3
 from typing import Annotated, Optional
 
 import typer
+from rich.markup import escape
 from rich.table import Table
 
 from . import db
@@ -141,17 +142,20 @@ def run(limit: Limit = None) -> None:
     _transcribe(settings, conn, limit)
     _enrich(settings, conn, limit)
     _export(settings, conn, None)
-    _print_status(conn)
+    _print_status(conn, settings.pipeline.max_attempts)
 
 
 @app.command()
 def status() -> None:
     """Show counts by state and recent errors."""
-    _, conn = _open()
-    _print_status(conn)
+    settings, conn = _open()
+    _print_status(conn, settings.pipeline.max_attempts)
 
 
-def _print_status(conn: sqlite3.Connection) -> None:
+_SHORT = {"instagram": "ig", "tiktok": "tt"}
+
+
+def _print_status(conn: sqlite3.Connection, max_attempts: int) -> None:
     rows = db.counts_by_state(conn)
     if not rows:
         console.print("No videos yet. Add URLs to urls.txt (or exports to exports/) and run `savemap ingest`.")
@@ -174,13 +178,13 @@ def _print_status(conn: sqlite3.Connection) -> None:
 
     errors = db.recent_errors(conn)
     if errors:
-        et = Table(title="Recent errors", show_lines=False)
-        for col in ("id", "platform", "stage", "tries", "error"):
-            et.add_column(col, overflow="fold")
+        # A plain list, not a table: error messages are long and terminals are often narrow.
+        console.print("\n[bold]Recent errors[/]")
         for e in errors:
-            et.add_row(str(e["id"]), e["platform"], e["error_stage"] or "", str(e["attempts"]),
-                       (e["last_error"] or "")[:200])
-        console.print(et)
+            where = f"{_SHORT.get(e['platform'], e['platform'])} {e['error_stage'] or ''}"
+            tries = "unavailable" if e["state"] == "unavailable" else f"try {e['attempts']}/{max_attempts}"
+            console.print(f"[bold]#{e['id']}[/] {where} ({tries}): {escape((e['last_error'] or '')[:200])}\n"
+                          f"   [dim]{e['url']}[/]")
 
 
 if __name__ == "__main__":
